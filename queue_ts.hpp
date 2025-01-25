@@ -8,29 +8,30 @@
 #include <type_traits>
 #include <utility>
 
+// 限定只有sharedptr 或者 uniqueptr合法
+// usage Queue<int,shared_ptr> q;
+
 namespace ThreadSafe {
 
-namespace aux{
-template <typename T, typename Compare>
-concept StrictWeakOrder =
-  requires(const T &a, const T &b, const T &c, Compare comp) {
-    { comp(a, b) } -> std::convertible_to<bool>;
-    requires !comp(a, a);
-    requires((comp(a, b) && comp(b, c)) ? comp(a, c) : true);
-  };
+namespace CmpWrapper {
+  template <typename T, typename Cmp>
+  struct SmartPtrCmp{
+    SmartPtrCmp(const Cmp &cmp = Cmp{}):c(cmp){}
+    Cmp c;
 
+    template <typename SmartPtr>
+    bool operator()(const SmartPtr &a, const SmartPtr &b) const {
+        return c(*a, *b); 
+    }
+  };
 };
 
-
-template <typename T, template<typename...> class SmartPtr, class Cmp = void>
+template <typename T, template<typename...> class SmartPtr, class Cmp=void>
 class Queue {
 
   static_assert(std::is_same_v<SmartPtr<T>, std::unique_ptr<T>> ||
                     std::is_same_v<SmartPtr<T>, std::shared_ptr<T>>,
                 "SmartPtr must be either std::unique_ptr or std::shared_ptr");
-
-  static_assert(std::is_same_v<Cmp, void> || aux::StrictWeakOrder<T, Cmp>,
-                "Cmp must be void or satisfy StrictWeakOrder");
 
 public:
   void push(const T &value);
@@ -47,9 +48,10 @@ public:
   pop_until(const std::chrono::time_point<Clock, Duration> &timeout_time);
 
 protected:
+  using Wrapper = CmpWrapper::SmartPtrCmp<T, Cmp>;
   using Container = std::conditional_t<
       std::is_void_v<Cmp>, std::queue<SmartPtr<T>>,
-      std::priority_queue<SmartPtr<T>, std::vector<SmartPtr<T>>, Cmp>>;
+      std::priority_queue<SmartPtr<T>, std::vector<SmartPtr<T>>, Wrapper>>;
 
   SmartPtr<T> _pop();
   Container _container;
@@ -78,7 +80,7 @@ SmartPtr<T> Queue<T, SmartPtr, Comparator>::_pop() {
   if constexpr (std::is_same_v<decltype(_container), std::queue<SmartPtr<T>>>) {
     ret = std::move(_container.front());
   } else {
-    ret = std::move((_container.top()));
+    ret = std::move(const_cast<SmartPtr<T>&>(_container.top()));
   }
 
   _container.pop();
@@ -133,9 +135,9 @@ SmartPtr<T> Queue<T, SmartPtr, Comparator>::pop_until(
   return nullptr;
 }
 
-template <typename T,  class Cmp = void>
-class SharedQueue :public Queue<T, std::shared_ptr,Cmp>{};
+template <typename T, class Cmp = void>
+using SharedQueue = Queue<T, std::shared_ptr, Cmp>;
 
-template <typename T,  class Cmp = void>
-class UniqueQueue :public Queue<T, std::unique_ptr,Cmp>{};
+template <typename T, class Cmp = void>
+using UniqueQueue = Queue<T, std::unique_ptr, Cmp>;
 }; // namespace ThreadSafe
