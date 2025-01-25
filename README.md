@@ -5,15 +5,14 @@
 template <typename T, template<typename...> class SmartPtr, class Cmp = void>,第一个参数为数据类型，第二个参数为std::shared_ptr或std::unique_ptr,第三个参数如果没有则Queue内部实现为std::queue,如果存在则Queue内部实现为std::prority_queue，并以cmp作为比较
 
 ## push
-  void push(const T &value); ->push(SmartPtr<T>(new T(value)))
-  void push(T &&value);    ->push(SmartPtr<T>(new T(std::forward<T>(value))))
+  void push(const T &value); ->push(SmartPtr<T>(new T(value)))  
+  void push(T &&value);    ->push(SmartPtr<T>(new T(std::forward<T>(value))))  
   添加到queue或prority_queue必须是智能指针，则没有栈数据失效非法访问的问题
 
 ## pop
-  SmartPtr<T> pop_must(); // 阻塞直到pop完成
-  SmartPtr<T> pop_try();  // 尝试pop，失败返回nullptr
-
-  SmartPtr<T> pop_for(const std::chrono::duration<Rep, Period> &timeout); // 在timeout一段时间内之前尝试获取，失败返回nullptr
+  SmartPtr<T> pop_must(); // 阻塞直到pop完成  
+  SmartPtr<T> pop_try();  // 尝试pop，失败返回nullptr  
+  SmartPtr<T> pop_for(const std::chrono::duration<Rep, Period> &timeout); // 在timeout一段时间内之前尝试获取，失败返回nullptr  
   SmartPtr<T> pop_until(const std::chrono::time_point<Clock, Duration> &timeout_time); //在timeout_time时间节点之前尝试获取，失败返回nullptr
 
 ## 并发
