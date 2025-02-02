@@ -1,4 +1,4 @@
-# thread_save_queue
+# thread_safe_queue
 一个线程安全的队列/最小最大堆
 
 # Queue
